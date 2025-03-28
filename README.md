@@ -7,7 +7,6 @@ Example Initial Context in Settings Below
 
 \# PROJECT DESCRIPTION
 Create one page html applications.
-
 \#\# DEPENDANCIES
 Use open source js packages and frameworks that make sense for the project requirements
 
