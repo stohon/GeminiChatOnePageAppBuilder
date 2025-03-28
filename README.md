@@ -13,4 +13,6 @@ Create one page html applications.
 Use open source js packages and frameworks that make sense for the project requirements
 
 
+If you want to load images or other resources into your application instruct Gemini to add a settings popup to your app that allows you to select a folder to upload images and save them for later use, for example. 
+
 Have fun.
