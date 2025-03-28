@@ -2,7 +2,7 @@ Log into Google AI Studio and get a api key.
 
 Run the app and update settings with the api key and select Gemini 2.5 or the latest model for best experience. 
 
-Example Initial Context in Settings Below 
+##Example Initial Context in Settings Below 
 (this is optional and used to instruct the LLM of what you are trying to achieve, exmaple is good for one page apps like html games)
 
 \# PROJECT DESCRIPTION
