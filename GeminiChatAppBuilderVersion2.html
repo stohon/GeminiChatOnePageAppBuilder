@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chat - One Page App Builder (GOPAB)</title>
+    <style>
+        /* --- Basic Reset & Variables --- */
+        :root {
+            --bg-light: #f8f9fa; --bg-medium: #e9ecef; --bg-dark: #212529;
+            --text-light: #f8f9fa; --text-medium: #6c757d; --text-dark: #212529;
+            --border-light: #dee2e6; --border-dark: #495057;
+            --link-color: #007bff; --link-hover: #0056b3;
+            --primary: #007bff; --primary-hover: #0056b3; --secondary: #6c757d; --secondary-hover: #5a6268;
+            --error-bg: #FFD2D2; --error-text: #D8000C; --error-border: #D8000C;
+            --info-bg: #d1ecf1; --info-text: #0c5460; --info-border: #bee5eb;
+            --loading-bg: #fff3cd; --loading-text: #856404; --loading-border: #ffeeba;
+            --code-bg: #282c34; --code-text: #abb2bf; --code-border: #444;
+        }
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: var(--bg-light); color: var(--text-dark); overflow: hidden; transition: background-color 0.3s, color 0.3s; }
+
+        /* --- Header Bar --- */
+        #header-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 15px; background-color: var(--bg-medium); border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+        #header-bar h3 { margin: 0; font-size: 1.1em; color: var(--text-dark); }
+        #header-bar button { padding: 6px 12px; font-size: 0.9em; cursor: pointer; background-color: var(--secondary); color: var(--text-light); border: none; border-radius: 4px; margin-left: 10px; }
+        #header-bar button:hover { background-color: var(--secondary-hover); }
+
+        /* --- Main Content Area --- */
+        #main-content { display: flex; flex-grow: 1; overflow: hidden; }
+
+        /* --- Chat Column --- */
+        #chat-column { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border-light); background-color: var(--bg-light); }
+        #chat-info-display { font-size: 0.9em; color: var(--text-medium); text-align: center; padding: 5px 0; border-bottom: 1px solid var(--bg-medium); flex-shrink: 0; font-weight: bold; min-height: 1.2em; }
+        #chat-history { flex-grow: 1; overflow-y: auto; padding: 15px; }
+        #input-area { display: flex; padding: 10px; border-top: 1px solid var(--border-light); background-color: var(--bg-medium); flex-shrink: 0; }
+        #user-input { flex-grow: 1; padding: 10px 12px; border: 1px solid var(--border-light); border-radius: 20px; margin-right: 10px; font-size: 1em; background-color: #fff; color: var(--text-dark); }
+        #user-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        #user-input:disabled { background-color: var(--bg-medium); cursor: not-allowed; }
+        #send-button { padding: 10px 20px; background-color: var(--primary); color: var(--text-light); border: none; border-radius: 20px; cursor: pointer; font-size: 1em; transition: background-color 0.2s; }
+        #send-button:hover:not(:disabled) { background-color: var(--primary-hover); }
+        #send-button:disabled { background-color: var(--secondary); opacity: 0.7; cursor: not-allowed; }
+
+        /* --- Chat Messages --- */
+        .message { margin-bottom: 15px; padding: 10px 15px; border-radius: 12px; max-width: 90%; word-wrap: break-word; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .user-message { background-color: var(--primary); color: var(--text-light); align-self: flex-end; margin-left: auto; }
+        .model-message { background-color: var(--bg-medium); color: var(--text-dark); align-self: flex-start; margin-right: auto; }
+        .code-block-wrapper { position: relative; }
+        .model-message pre { background-color: var(--code-bg); color: var(--code-text); padding: 15px; border-radius: 5px; overflow-x: auto; margin: 10px 0; border: 1px solid var(--code-border); }
+        .model-message code { font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 0.9em; }
+        .inline-code-mention { font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 0.9em; padding: 0.1em 0.4em; background-color: rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; color: var(--text-dark); }
+        .code-actions { position: absolute; top: 5px; right: 5px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s ease-in-out; background-color: rgba(40, 44, 52, 0.7); padding: 2px 4px; border-radius: 3px;}
+        .code-block-wrapper:hover .code-actions { opacity: 1; }
+        .code-actions button { background-color: #555; color: white; border: none; padding: 3px 8px; font-size: 0.8em; cursor: pointer; border-radius: 3px; opacity: 0.8; transition: opacity 0.2s, background-color 0.2s; }
+        .code-actions button:hover { opacity: 1; background-color: #777; }
+        .chat-error-message { color: var(--error-text); background-color: var(--error-bg); border: 1px solid var(--error-border); padding: 10px; margin: 5px 15px 10px 15px; border-radius: 5px; }
+        .loading-indicator { text-align: center; padding: 10px; color: var(--text-medium); font-style: italic; }
+        .info-message { color: var(--info-text); background-color: var(--info-bg); border: 1px solid var(--info-border); padding: 10px; margin: 5px 15px 10px 15px; border-radius: 5px; font-size: 0.9em; text-align: center; }
+
+        /* --- Right Sidebar Column --- */
+        #right-sidebar-column { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; background-color: var(--bg-medium); overflow: hidden; }
+        #prompt-history-section { border-bottom: 1px solid var(--border-light); flex-shrink: 0; display: flex; flex-direction: column; max-height: 40%; }
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 10px 15px; background-color: var(--bg-medium); font-size: 0.95em; color: var(--text-dark); border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+        .sidebar-header h4 { margin: 0; font-weight: 600; }
+        .sidebar-header a { font-size: 0.85em; color: var(--link-color); text-decoration: none; cursor: pointer; }
+        .sidebar-header a:hover { text-decoration: underline; color: var(--link-hover); }
+        #prompt-list { list-style: none; padding: 10px 15px; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #prompt-list li { margin-bottom: 5px; font-size: 0.9em; }
+        #prompt-list li a { color: var(--link-hover); text-decoration: none; cursor: pointer; }
+        #prompt-list li a:hover { text-decoration: underline; }
+        #prompt-list .no-items { color: var(--text-medium); font-style: italic; }
+        #code-files-section { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #code-files-list { list-style: none; padding: 10px 15px; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #code-files-list li { background-color: #fff; border: 1px solid var(--border-light); border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; word-break: break-all; }
+        #code-files-list li span { margin-right: 10px; color: var(--text-dark); flex-grow: 1; }
+        #code-files-list .snippet-action-link { font-size: 0.9em; color: var(--link-color); text-decoration: none; cursor: pointer; white-space: nowrap; padding: 2px 5px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; }
+        #code-files-list .snippet-action-link:hover { text-decoration: underline; background-color: var(--bg-medium); border-color: var(--border-light); }
+        #code-files-list .no-items { color: var(--text-medium); font-style: italic; background-color: transparent; border: none;}
+
+        /* --- Modals --- */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); padding-top: 60px; }
+        .modal-content { background-color: var(--bg-light); color: var(--text-dark); margin: 5% auto; padding: 20px; border: 1px solid var(--border-light); width: 80%; max-width: 600px; border-radius: 8px; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .modal-content h2 { margin-top: 0; color: var(--text-dark); border-bottom: 1px solid var(--bg-medium); padding-bottom: 10px; }
+        .close-button { color: #aaa; position: absolute; top: 10px; right: 20px; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: var(--text-dark); text-decoration: none; cursor: pointer; }
+        .modal label { display: block; margin: 15px 0 5px 0; font-weight: bold; font-size: 0.9em; color: var(--text-dark); }
+        .modal textarea, .modal input[type="password"], .modal input[type="text"], .modal select { background-color: #fff; color: var(--text-dark); width: 95%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; margin-bottom: 10px; font-size: 0.9em; }
+        .modal textarea { min-height: 100px; max-height: 200px; resize: vertical; }
+        .modal button { padding: 10px 20px; background-color: var(--primary); color: var(--text-light); border: none; border-radius: 4px; cursor: pointer; font-size: 1em; margin-top: 15px; }
+        .modal button:hover:not(:disabled) { background-color: var(--primary-hover); }
+        .modal button:disabled { background-color: var(--secondary); opacity: 0.7; cursor: not-allowed; }
+        .modal p { font-size: 0.8em; color: var(--text-medium); margin-top: 5px; margin-bottom: 15px; }
+        #settings-modal input[type="checkbox"] { width: auto; margin-right: 5px; vertical-align: middle; }
+        #settings-modal .checkbox-label { display: inline-block; font-weight: normal; vertical-align: middle; color: var(--text-dark); }
+        #settings-modal #modal-list-models-button { padding: 8px 15px; background-color: var(--secondary); color: var(--text-light); border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-right: 10px; margin-top: 0; }
+        #settings-modal #modal-list-models-button:disabled { background-color: var(--secondary); opacity: 0.7; cursor: not-allowed; }
+        #settings-model-list-status { font-size: 0.9em; margin-top: 5px; padding: 8px; border-radius: 4px; text-align: center; }
+        #settings-model-list-status.info-message { color: var(--info-text); background-color: var(--info-bg); border: 1px solid var(--info-border); }
+        #settings-model-list-status.error-message { color: var(--error-text); background-color: var(--error-bg); border: 1px solid var(--error-border); }
+        #settings-model-list-status.loading-message { color: var(--loading-text); background-color: var(--loading-bg); border: 1px solid var(--loading-border); }
+        #settings-model-list-status:empty { display: none; }
+        #prompt-display-modal .modal-content { max-width: 700px; }
+        #prompt-display-modal pre { background-color: var(--bg-medium); color: var(--text-dark); border: 1px solid var(--border-light); border-radius: 4px; padding: 15px; font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 0.9em; white-space: pre-wrap; word-wrap: break-word; max-height: 60vh; overflow-y: auto; }
+        #new-chat-modal input[type="file"] { display: block; margin-bottom: 5px; border: 1px solid var(--border-light); padding: 5px; border-radius: 4px; width: 95%; font-size: 0.9em; background-color: #fff; color: var(--text-dark); }
+        #new-chat-modal #new-chat-file-prefix { margin-bottom: 0; }
+        .filename-display { font-size: 0.8em; color: var(--text-medium); margin-left: 2px; display: inline-block; height: 1em; }
+        #new-chat-file-prefix:required:invalid { border-color: #dc3545; }
+        .error-text { color: #dc3545; font-size: 0.8em; display: none; margin-top: 2px; margin-bottom: 10px; }
+
+        /* --- DARK MODE STYLES --- */
+        body.dark-mode { --bg-light: #212529; --bg-medium: #343a40; --bg-dark: #f8f9fa; --text-light: #f8f9fa; --text-medium: #adb5bd; --text-dark: #e9ecef; --border-light: #495057; --border-dark: #dee2e6; --link-color: #6ea8fe; --link-hover: #8bbafd; --primary: #0d6efd; --primary-hover: #0b5ed7; --secondary: #6c757d; --secondary-hover: #5a6268; --error-bg: #571e22; --error-text: #f8d7da; --error-border: #842029; --info-bg: #0a363f; --info-text: #cff4fc; --info-border: #125b6a; --loading-bg: #664d03; --loading-text: #ffecb5; --loading-border: #806009; --code-border: #555; }
+        body.dark-mode #user-input { background-color: var(--bg-medium); color: var(--text-light); }
+        body.dark-mode #code-files-list li { background-color: var(--bg-medium); }
+        body.dark-mode #code-files-list .snippet-action-link:hover { background-color: var(--border-light); }
+        body.dark-mode .modal textarea, body.dark-mode .modal input[type="password"], body.dark-mode .modal input[type="text"], body.dark-mode .modal select { background-color: var(--bg-medium); color: var(--text-light); }
+        body.dark-mode #new-chat-modal input[type="file"] { background-color: var(--bg-medium); color: var(--text-light); }
+        body.dark-mode .close-button:hover, body.dark-mode .close-button:focus { color: #fff; }
+        body.dark-mode .error-text { color: #f5c6cb; }
+        body.dark-mode #new-chat-file-prefix:required:invalid { border-color: #f5c6cb; }
+        body.dark-mode .inline-code-mention { background-color: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: var(--text-dark); }
+    </style>
+</head>
+<body>
+    <div id="header-bar">
+        <h3>Gemini Chat - One Page App Builder (GOPAB)</h3> 
+        <div>
+            <button id="new-chat-button">New Chat</button>
+            <button id="settings-button">Settings</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="chat-column">
+            <div id="chat-info-display">Model not selected</div>
+            <div id="chat-history"></div>
+            <div id="input-area">
+                <input type="text" id="user-input" placeholder="Start New Chat..." disabled>
+                <button id="send-button" disabled>Send</button>
+            </div>
+        </div>
+        <div id="right-sidebar-column">
+            <div id="prompt-history-section">
+                <div class="sidebar-header"><h4>Prompts</h4><a href="#" id="save-all-prompts-link">Save All</a></div>
+                <ul id="prompt-list"></ul>
+            </div>
+            <div id="code-files-section">
+                 <div class="sidebar-header"><h4>Code Files</h4></div>
+                <ul id="code-files-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Settings</h2>
+            <label for="modal-api-key">Google AI Studio API Key:</label> <input type="password" id="modal-api-key" placeholder="Paste API key"> <p>Stored locally.</p>
+            <button id="modal-list-models-button">List Models</button> <div id="settings-model-list-status"></div>
+            <label for="modal-model-selector">Chat Model:</label> <select id="modal-model-selector" disabled><option value="">-- List models first --</option></select>
+
+            <label for="modal-projects-folder">Projects Folder (Informational Only):</label>
+            <input type="text" id="modal-projects-folder" placeholder="e.g., C:\Users\YourName\Documents\AI_Projects">
+            <p>NOTE: This app cannot automatically save to this path. Files will be saved via your browser's download prompt.</p>
+
+            <div><input type="checkbox" id="modal-hide-code"><label for="modal-hide-code" class="checkbox-label">Hide code blocks in chat</label></div><p>Hides code in main chat window.</p>
+            <div><input type="checkbox" id="modal-dark-mode"><label for="modal-dark-mode" class="checkbox-label">Enable Dark Mode</label></div>
+            <label for="modal-log-input">Default Initial Context (Optional):</label> <textarea id="modal-log-input" placeholder="Paste logs or context here."></textarea> <p>Used when starting a new chat without loading files. Stored locally.</p>
+        </div>
+    </div>
+
+    <div id="new-chat-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Start New Chat / Load Context</h2>
+
+            <label for="new-chat-file-prefix">File Prefix (Required):</label>
+            <input type="text" id="new-chat-file-prefix" placeholder="Prefix for saved files (e.g., my_project)" required>
+            <p class="error-text" id="file-prefix-error">File Prefix is required.</p>
+
+            <label for="new-chat-prompt-instructions">Prompt Instructions (Optional):</label>
+            <textarea id="new-chat-prompt-instructions" placeholder="Instructions prepended to every prompt (e.g., 'Act as a Python expert reviewing code.')"></textarea>
+            <p>These instructions apply to this chat session only.</p>
+
+            <p style="margin-top: 20px;">Optionally select files below to load previous context.</p>
+            <label for="load-context-file-input">Load Context / Code File (Optional):</label>
+            <input type="file" id="load-context-file-input" accept=".txt,.js,.py,.html,.css,.json,.log,text/plain">
+            <span class="filename-display" id="context-filename"></span>
+            <label for="load-prompts-file-input">Load Prompts File (Optional):</label>
+            <input type="file" id="load-prompts-file-input" accept=".txt,text/plain">
+            <span class="filename-display" id="prompts-filename"></span>
+            <button id="new-chat-confirm-button" disabled>New Chat</button>
+        </div>
+    </div>
+
+    <div id="prompt-display-modal" class="modal"> <div class="modal-content"> <span class="close-button">&times;</span> <h2>Prompt Text</h2> <pre id="prompt-display-content"></pre> </div> </div>
+
+
+    <script>
+        // --- DOM References ---
+        const settingsButton = document.getElementById('settings-button'); const newChatButton = document.getElementById('new-chat-button');
+        const chatHistory = document.getElementById('chat-history'); const userInput = document.getElementById('user-input'); const sendButton = document.getElementById('send-button');
+        const chatInfoDisplay = document.getElementById('chat-info-display');
+        const codeFilesList = document.getElementById('code-files-list');
+        const promptList = document.getElementById('prompt-list'); const saveAllPromptsLink = document.getElementById('save-all-prompts-link');
+        const settingsModal = document.getElementById('settings-modal'); const closeSettingsModalButton = settingsModal.querySelector('.close-button'); const apiKeyInput = document.getElementById('modal-api-key'); const listModelsButton = document.getElementById('modal-list-models-button'); const modelSelector = document.getElementById('modal-model-selector'); const modelListStatus = document.getElementById('settings-model-list-status'); const logInput = document.getElementById('modal-log-input'); const hideCodeCheckbox = document.getElementById('modal-hide-code'); const darkModeCheckbox = document.getElementById('modal-dark-mode'); const projectsFolderInput = document.getElementById('modal-projects-folder');
+        const newChatModal = document.getElementById('new-chat-modal'); const closeNewChatModalButton = newChatModal.querySelector('.close-button'); const loadContextFileInput = document.getElementById('load-context-file-input'); const loadPromptsFileInput = document.getElementById('load-prompts-file-input'); const contextFilenameDisplay = document.getElementById('context-filename'); const promptsFilenameDisplay = document.getElementById('prompts-filename'); const newChatConfirmButton = document.getElementById('new-chat-confirm-button'); const filePrefixInput = document.getElementById('new-chat-file-prefix'); const filePrefixError = document.getElementById('file-prefix-error'); const promptInstructionsInput = document.getElementById('new-chat-prompt-instructions');
+        const promptDisplayModal = document.getElementById('prompt-display-modal'); const closePromptModalButton = promptDisplayModal.querySelector('.close-button'); const promptDisplayContent = document.getElementById('prompt-display-content');
+
+        // --- App State & Constants ---
+        const BASE_API_URL = "https://generativelanguage.googleapis.com/v1beta/";
+        const LS_API_KEY = 'gemini_api_key'; const LS_MODEL_ID = 'gemini_selected_model'; const LS_LOG_CONTEXT = 'gemini_log_context'; const LS_HIDE_CODE = 'gemini_hide_code'; const LS_DARK_MODE = 'gemini_dark_mode'; const LS_PROJECTS_FOLDER = 'gemini_projects_folder';
+        // No LS key needed for File Prefix or Prompt Instructions - they are session specific
+
+        let conversationHistory = []; let isChatLoading = false; let isModelListLoading = false; let selectedModelName = null; let availableModels = []; let extractedCodeSnippets = []; let snippetCounter = 0; let userPrompts = [];
+        let currentFilePrefix = ""; // Session specific prefix
+        let currentPromptInstructions = ""; // Session specific instructions
+
+        // =====================================================
+        // --- UI State Management Functions (Defined Early) ---
+        // =====================================================
+        function updateChatAvailability() {
+            const k = !!loadFromLS(LS_API_KEY);
+            const m = selectedModelName !== null && selectedModelName !== '';
+            const prefixSet = !!currentFilePrefix; // Prefix must be set for session to be active
+            const c = k && m && prefixSet && !isChatLoading;
+            userInput.disabled = !c;
+            sendButton.disabled = !c;
+            userInput.placeholder = c ? "Type message..." : (k && m ? "Start New Chat..." : "Configure API Key/Model in Settings");
+        }
+
+        function updateChatInfoDisplay() {
+             if (selectedModelName) {
+                 const modelData = availableModels.find(m => m.name === selectedModelName);
+                 const displayName = modelData?.displayName || selectedModelName;
+                 const prefixInfo = currentFilePrefix ? ` [Prefix: ${currentFilePrefix}]` : '';
+                 chatInfoDisplay.textContent = `Using: ${displayName}${prefixInfo}`;
+             } else {
+                 chatInfoDisplay.textContent = `Model not selected`;
+             }
+             updateChatAvailability();
+         }
+
+        function applyDarkMode(isDark) {
+             console.log("Applying Dark Mode:", isDark);
+             document.body.classList.toggle('dark-mode', isDark);
+         }
+
+
+        // ============================
+        // --- Initialization ---
+        // ============================
+        loadSettings();
+        renderPromptList();
+        renderCodeFilesSidebar();
+        updateChatInfoDisplay(); // Call after other initializations
+
+        // ============================
+        // --- Event Listeners ---
+        // ============================
+        settingsButton.addEventListener('click', openSettingsModal); closeSettingsModalButton.addEventListener('click', closeSettingsModal); window.addEventListener('click', (event) => { if (event.target == settingsModal) closeSettingsModal(); });
+        newChatButton.addEventListener('click', openNewChatModal); closeNewChatModalButton.addEventListener('click', closeNewChatModal); window.addEventListener('click', (event) => { if (event.target == newChatModal) closeNewChatModal(); });
+        promptList.addEventListener('click', handlePromptListClick); closePromptModalButton.addEventListener('click', closePromptModal); window.addEventListener('click', (event) => { if (event.target == promptDisplayModal) closePromptModal(); });
+        apiKeyInput.addEventListener('input', handleApiKeyChange); listModelsButton.addEventListener('click', listAvailableModels); modelSelector.addEventListener('change', handleModelSelectionChange); logInput.addEventListener('input', () => saveToLS(LS_LOG_CONTEXT, logInput.value)); projectsFolderInput.addEventListener('input', () => saveToLS(LS_PROJECTS_FOLDER, projectsFolderInput.value)); hideCodeCheckbox.addEventListener('change', handleHideCodeChange); darkModeCheckbox.addEventListener('change', handleDarkModeChange);
+        loadContextFileInput.addEventListener('change', handleFileInputChange); loadPromptsFileInput.addEventListener('change', handleFileInputChange); filePrefixInput.addEventListener('input', updateNewChatButtonLabel);
+        newChatConfirmButton.addEventListener('click', handleNewChatConfirm);
+        saveAllPromptsLink.addEventListener('click', handleSaveAllPrompts); sendButton.addEventListener('click', handleSendMessage); userInput.addEventListener('keypress', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSendMessage(); }}); chatHistory.addEventListener('click', handleChatHistoryClick); codeFilesList.addEventListener('click', handleSnippetListClick);
+
+        // ============================
+        // --- LocalStorage Helpers ---
+        // ============================
+        function saveToLS(key, value) { try { localStorage.setItem(key, value); } catch(e) { console.error(`LS Error (${key}):`, e); } }
+        function loadFromLS(key, defaultValue = null) { try { return localStorage.getItem(key) ?? defaultValue; } catch(e) { console.error(`LS Error (${key}):`, e); return defaultValue; } }
+        function loadJsonFromLS(key, defaultValue = null) { const item = loadFromLS(key); if (item) { try { return JSON.parse(item); } catch(e) { console.error(`LS JSON Parse Error (${key}):`, e); } } return defaultValue; }
+
+        // ============================
+        // --- Settings Load/Save ---
+        // ============================
+        function loadSettings() { console.log("Loading settings..."); apiKeyInput.value = loadFromLS(LS_API_KEY, ''); selectedModelName = loadFromLS(LS_MODEL_ID); logInput.value = loadFromLS(LS_LOG_CONTEXT, ''); projectsFolderInput.value = loadFromLS(LS_PROJECTS_FOLDER, ''); hideCodeCheckbox.checked = !!loadJsonFromLS(LS_HIDE_CODE, false); const isDarkMode = !!loadJsonFromLS(LS_DARK_MODE, false); darkModeCheckbox.checked = isDarkMode; applyDarkMode(isDarkMode); if (apiKeyInput.value) { listAvailableModels(); } else { updateChatAvailability(); } updateChatInfoDisplay(); }
+        function handleApiKeyChange() { saveToLS(LS_API_KEY, apiKeyInput.value); resetModelSelection(true); updateChatAvailability(); }
+        function handleModelSelectionChange() { selectedModelName = modelSelector.value; const d = availableModels.find(m => m.name === selectedModelName)?.displayName || selectedModelName; if (selectedModelName) { saveToLS(LS_MODEL_ID, selectedModelName); displayModelListStatus(`Selected: ${d}`, "info-message"); } else { localStorage.removeItem(LS_MODEL_ID); displayModelListStatus("Select model.", "info-message"); } updateChatInfoDisplay(); updateChatAvailability(); }
+        function handleHideCodeChange() { const shouldHide = hideCodeCheckbox.checked; saveToLS(LS_HIDE_CODE, JSON.stringify(shouldHide)); console.log("Hide code saved:", shouldHide); rerenderChatHistory(); }
+        function handleDarkModeChange() { const isDarkMode = darkModeCheckbox.checked; saveToLS(LS_DARK_MODE, JSON.stringify(isDarkMode)); applyDarkMode(isDarkMode); }
+
+        // ==========================
+        // --- Modal Open/Close ---
+        // ==========================
+        function openSettingsModal() { settingsModal.style.display = 'block'; }
+        function closeSettingsModal() { settingsModal.style.display = 'none'; }
+        function openPromptModal(promptText) { promptDisplayContent.textContent = promptText; promptDisplayModal.style.display = 'block'; }
+        function closePromptModal() { promptDisplayModal.style.display = 'none'; promptDisplayContent.textContent = ''; }
+        function openNewChatModal() { loadContextFileInput.value = null; loadPromptsFileInput.value = null; contextFilenameDisplay.textContent = ''; promptsFilenameDisplay.textContent = ''; filePrefixInput.value = ''; promptInstructionsInput.value = ''; filePrefixError.style.display = 'none'; updateNewChatButtonLabel(); newChatModal.style.display = 'block'; }
+        function closeNewChatModal() { newChatModal.style.display = 'none'; }
+
+        // =================================
+        // --- New Chat / Load Logic ---
+        // =================================
+        function handleFileInputChange(event) { const inputElement = event.target; const file = inputElement.files[0]; let filenameDisplay; if (inputElement.id === 'load-context-file-input') { filenameDisplay = contextFilenameDisplay; } else if (inputElement.id === 'load-prompts-file-input') { filenameDisplay = promptsFilenameDisplay; } if (filenameDisplay) { filenameDisplay.textContent = file ? file.name : ''; } updateNewChatButtonLabel(); }
+        function updateNewChatButtonLabel() { const contextSelected = loadContextFileInput.files.length > 0; const promptsSelected = loadPromptsFileInput.files.length > 0; const prefixEntered = filePrefixInput.value.trim() !== ''; const canLoad = contextSelected || promptsSelected; newChatConfirmButton.textContent = canLoad ? "Load Chat" : "Start Chat"; newChatConfirmButton.disabled = !prefixEntered; filePrefixError.style.display = prefixEntered ? 'none' : 'block'; }
+        function readFileContent(fileInput) { return new Promise((resolve, reject) => { if (!fileInput.files || fileInput.files.length === 0) { resolve(null); return; } const file = fileInput.files[0]; const reader = new FileReader(); reader.onload = (event) => { resolve(event.target.result); }; reader.onerror = (error) => { console.error("File reading error:", error); reject(new Error(`Error reading file: ${file.name}`)); }; reader.readAsText(file); }); }
+        async function handleNewChatConfirm() { const filePrefix = filePrefixInput.value.trim(); if (!filePrefix) { filePrefixError.style.display = 'block'; filePrefixInput.focus(); return; } filePrefixError.style.display = 'none'; const isFileLoad = loadContextFileInput.files.length > 0 || loadPromptsFileInput.files.length > 0; let contextToLoad = null; let promptsToLoad = null; let errorReadingFile = false; newChatConfirmButton.disabled = true; newChatConfirmButton.textContent = "Processing..."; if (isFileLoad) { try { const [contextContent, promptsContent] = await Promise.all([ readFileContent(loadContextFileInput), readFileContent(loadPromptsFileInput) ]); contextToLoad = contextContent; promptsToLoad = promptsContent; } catch (error) { console.error("Error reading files:", error); displayChatError(`Error loading file: ${error.message}`); errorReadingFile = true; } } newChatConfirmButton.disabled = false; updateNewChatButtonLabel(); if (errorReadingFile) { closeNewChatModal(); return; } currentFilePrefix = filePrefix; currentPromptInstructions = promptInstructionsInput.value.trim(); updateChatInfoDisplay(); clearChatState(); if (isFileLoad) { console.log(`Loading chat with prefix: ${currentFilePrefix}`); let initialPromptToModel = `Starting session with prefix "${currentFilePrefix}" based on loaded file data.\n\n`; let loadedPromptCount = 0; if (contextToLoad) { initialPromptToModel += `**Context/Code Loaded:**\n\`\`\`\n${contextToLoad}\n\`\`\`\n\n`; } if (promptsToLoad) { const parsedPrompts = parseLoadedPrompts(promptsToLoad); if (parsedPrompts.length > 0) { userPrompts = parsedPrompts; renderPromptList(); initialPromptToModel += `**${userPrompts.length} Previous Prompts Loaded.**\n\n`; loadedPromptCount = userPrompts.length; } } if (currentPromptInstructions) { initialPromptToModel += `**Prompt Instructions Set:**\n\`\`\`\n${currentPromptInstructions}\n\`\`\`\n\n`; } initialPromptToModel += "Acknowledge receipt and await next instruction."; conversationHistory.push({ role: "user", parts: [{ text: initialPromptToModel }] }); conversationHistory.push({ role: "model", parts: [{ text: `Okay, context/prompts loaded for prefix "${currentFilePrefix}". Ready.` }] }); addInfoMessageToChat(`Chat loaded with ${contextToLoad ? 'context' : ''}${contextToLoad && loadedPromptCount ? ' and ' : ''}${loadedPromptCount ? loadedPromptCount + ' prompts' : ''} file(s). ${currentPromptInstructions ? 'Prompt Instructions active.' : ''}`); displayChatMessage('model', `Okay, context/prompts loaded for prefix "${currentFilePrefix}". Ready.`); } else { console.log(`Starting new chat with prefix: ${currentFilePrefix}`); addInfoMessageToChat(`New chat started with prefix "${currentFilePrefix}". ${currentPromptInstructions ? 'Prompt Instructions active.' : ''}`); const defaultLogContext = logInput.value.trim(); if (defaultLogContext) { conversationHistory.push({ role: "user", parts: [{ text: "Context:\n" + defaultLogContext }] }); conversationHistory.push({ role: "model", parts: [{ text: "Context noted."}] }); displayChatMessage('model',"Context noted."); } } closeNewChatModal(); updateChatAvailability(); }
+        function parseLoadedPrompts(promptData) { const loaded=[]; const promptsRaw=promptData.split(/--- Prompt \d+ ---/g).filter(p=>p.trim()!==''); promptsRaw.forEach(pText=>{loaded.push(pText.trim());}); console.log(`Parsed ${loaded.length} prompts.`); return loaded; }
+        function addInfoMessageToChat(text) { const infoDiv=document.createElement('div'); infoDiv.classList.add('info-message'); infoDiv.textContent=text; chatHistory.appendChild(infoDiv); chatHistory.scrollTop=chatHistory.scrollHeight; }
+        function clearChatState() { console.log("Clearing chat state (keeping file prefix/instructions)"); conversationHistory=[]; userPrompts=[]; extractedCodeSnippets=[]; snippetCounter=0; chatHistory.innerHTML=''; renderPromptList(); renderCodeFilesSidebar(); }
+
+        // --- Model Listing & Selection ---
+        async function listAvailableModels() { const apiKey = apiKeyInput.value.trim(); if (!apiKey) { displayModelListStatus("API Key required", "error-message"); return; } if (isModelListLoading) return; setListModelsLoading(true); clearModelListStatus(); modelSelector.innerHTML = '<option value="">-- Loading... --</option>'; modelSelector.disabled = true; const apiUrl = `${BASE_API_URL}models?key=${apiKey}`; try { const response = await fetch(apiUrl); let d; try { d = await response.json(); } catch (e) { throw new Error(`Non-JSON response: ${response.status}`); } if (!response.ok) { throw new Error(d?.error?.message || `HTTP error: ${response.status}`); } if (d.models?.length) { populateModelSelector(d.models); const sId = loadFromLS(LS_MODEL_ID); if (sId && availableModels.some(m => m.name === sId)) { modelSelector.value = sId; selectedModelName = sId; const dN = availableModels.find(m=>m.name===sId)?.displayName || sId; displayModelListStatus(`Selected: ${dN}`, "info-message"); } else if (sId) { localStorage.removeItem(LS_MODEL_ID); selectedModelName = null; displayModelListStatus("Prev. model invalid. Select.", "info-message"); modelSelector.value = ""; } else { selectedModelName = null; displayModelListStatus("Models loaded. Select.", "info-message"); } } else { throw new Error("No models found/bad response"); } } catch (error) { console.error("List models error:", error); displayModelListStatus(`Error: ${error.message}`, "error-message"); resetModelSelection(false); } finally { setListModelsLoading(false); updateChatAvailability(); updateChatInfoDisplay(); } }
+        function populateModelSelector(models) { availableModels = models.filter(m => m.supportedGenerationMethods?.includes('generateContent')); modelSelector.innerHTML = ''; if (availableModels.length === 0) { modelSelector.appendChild(new Option("-- No models --", "")); modelSelector.disabled = true; } else { modelSelector.appendChild(new Option("-- Select --", "", false, false)); modelSelector.value = ""; availableModels.forEach(m => { const dN=m.displayName||m.name||'Unknown';const v=m.version||'N/A';const ds=(m.description||'').substring(0,50);const el=(m.description||'').length>50?'...':'';const tx=`${dN} (${v})${ds?' - '+ds:''}${el}`; modelSelector.appendChild(new Option(tx,m.name)); }); modelSelector.disabled = false; } }
+        function resetModelSelection(clearStorage = false) { modelSelector.innerHTML='<option value="">-- List first --</option>'; modelSelector.disabled=true; clearModelListStatus(); availableModels=[]; selectedModelName=null; if (clearStorage) { try{localStorage.removeItem(LS_MODEL_ID);}catch(e){} console.log("Cleared model LS."); } clearChatState(); currentFilePrefix = ""; currentPromptInstructions = ""; updateChatInfoDisplay(); updateChatAvailability(); }
+        function displayModelListStatus(m, t="info-message") { modelListStatus.textContent=m; modelListStatus.className=`settings-model-list-status ${t}`; }
+        function clearModelListStatus() { modelListStatus.textContent=''; modelListStatus.className='settings-model-list-status'; }
+        function setListModelsLoading(l) { isModelListLoading=l; listModelsButton.disabled=l; if(l) displayModelListStatus("Fetching...","loading-message"); }
+
+        // --- Chat & Prompt Handling ---
+        function handleSendMessage() { const userTextRaw = userInput.value.trim(); const apiKey=loadFromLS(LS_API_KEY); if(!apiKey){displayChatError("API Key required.");return;} if(!selectedModelName){displayChatError("Model required.");return;} if (!currentFilePrefix) { displayChatError("Start a New Chat session first."); return; } if(!userTextRaw||isChatLoading){return;} userPrompts.push(userTextRaw); renderPromptList(); let userTextFinal = userTextRaw; if (currentPromptInstructions) { userTextFinal = `System Instructions:\n\`\`\`\n${currentPromptInstructions}\n\`\`\`\n\nUser Prompt:\n\`\`\`\n${userTextRaw}\n\`\`\``; console.log("Prepending Prompt Instructions."); } conversationHistory.push({ role: "user", parts: [{ text: userTextFinal }] }); displayChatMessage("user", userTextRaw); userInput.value=""; setChatLoading(true); callGeminiAPI(apiKey,conversationHistory,selectedModelName); }
+        async function callGeminiAPI(apiKey, messages, modelName) { const apiUrl=`${BASE_API_URL}${modelName}:generateContent?key=${apiKey}`; const payload={contents:messages,safetySettings:[{category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_MEDIUM_AND_ABOVE"},{category:"HARM_CATEGORY_HATE_SPEECH",threshold:"BLOCK_MEDIUM_AND_ABOVE"},{category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_MEDIUM_AND_ABOVE"},{category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_MEDIUM_AND_ABOVE"}],generationConfig:{}}; try{const r=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); let d; try{d=await r.json();}catch(e){throw new Error(`Non-JSON: ${r.status}`);} if(!r.ok){throw new Error(d?.error?.message||`HTTP error: ${r.status}`);} const c=d.candidates?.[0]; const t=c?.content?.parts?.[0]?.text; if(t!==undefined&&t!==null){conversationHistory.push({role:"model",parts:[{text:t}]}); displayChatMessage("model",t);}else if(c?.finishReason==='SAFETY'){conversationHistory.push({role:"model",parts:[{text:`[Blocked: SAFETY]`}]}); displayChatMessage("model",`*Response blocked: SAFETY*`);}else if(d.promptFeedback?.blockReason){displayChatError(`Prompt blocked: ${d.promptFeedback.blockReason}`);}else{throw new Error(`Unexpected response/finish: ${c?.finishReason||'UNKNOWN'}.`);}}catch(error){console.error(`API Error (${modelName}):`,error); displayChatError(`Chat Error: ${error.message}`);}finally{setChatLoading(false);} }
+
+        // --- Display & Snippet Extraction (Using Literal ``` and newline check) ---
+        function displayChatMessage(role, text) {
+             removeChatLoadingIndicator();
+             const messageDiv = document.createElement('div');
+             messageDiv.classList.add('message', role === 'user' ? 'user-message' : 'model-message');
+
+             const parts = text.split(/(```[\s\S]*?```)/g); // Split by literal ``` blocks
+
+             let snippetsAdded = false;
+             let hideCode = !!loadJsonFromLS(LS_HIDE_CODE, false);
+
+             parts.forEach(part => {
+                 // Check using literal ``` and if it contains a newline
+                 if (part.startsWith('```') && part.endsWith('```') && part.slice(3, -3).includes('\n')) {
+                     // Likely a true multi-line code block
+                     const wrapper = document.createElement('div'); wrapper.classList.add('code-block-wrapper');
+                     const pre = document.createElement('pre'); const code = document.createElement('code');
+                     let content = part.slice(3, -3).trim(); // Use literal 3
+                     let lang = ''; const fl = content.split('\n')[0];
+                     if (/^[a-zA-Z0-9\-_]+$/.test(fl.trim()) && content.includes('\n')) { lang = fl.trim(); content = content.substring(fl.length).trimStart(); code.classList.add(`language-${lang.toLowerCase()}`); }
+                     code.textContent = content; pre.appendChild(code);
+                     if (role === 'model' && hideCode) { wrapper.style.display = 'none'; } else { wrapper.style.display = ''; }
+                     const actions = document.createElement('div'); actions.classList.add('code-actions'); const lSpan = document.createElement('span'); lSpan.textContent = lang ? `(${lang})` : ''; lSpan.style.cssText = 'color:#ccc; font-size:0.8em; margin-right:10px;'; actions.appendChild(lSpan); const cBtn = document.createElement('button'); cBtn.textContent = 'Copy'; cBtn.classList.add('copy-code-btn'); cBtn.dataset.code = content; actions.appendChild(cBtn); const sBtn = document.createElement('button'); sBtn.textContent = 'Save'; sBtn.classList.add('save-code-btn'); sBtn.dataset.code = content; sBtn.dataset.lang = lang || 'txt'; actions.appendChild(sBtn);
+                     wrapper.appendChild(actions); wrapper.appendChild(pre); messageDiv.appendChild(wrapper);
+                     if (role === 'model') {
+                         snippetCounter++;
+                         const prefix = (currentFilePrefix || 'code_file').replace(/[\s/\\?%*:|"<>]/g, '_');
+                         const ext = lang || 'txt';
+                         const fname = `${prefix}_${snippetCounter}.${ext}`;
+                         extractedCodeSnippets.push({ filename: fname, code: content, language: lang, saved: false });
+                         snippetsAdded = true;
+                     }
+                 } else if (part.trim()) { // Handle regular text or potential inline mentions
+                     if (part.startsWith('```') && part.endsWith('```')) {
+                         // Treat as inline code mention if no newline was inside
+                         const codeSpan = document.createElement('code');
+                         codeSpan.textContent = part;
+                         codeSpan.classList.add('inline-code-mention');
+                         messageDiv.appendChild(codeSpan);
+                     } else { // Regular text part
+                         const span = document.createElement('span');
+                         part = part.replace(/\[([^\]]+)]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+                         span.innerHTML = part.trim().replace(/\n/g, '<br>');
+                         messageDiv.appendChild(span);
+                     }
+                 }
+             });
+             chatHistory.appendChild(messageDiv);
+             chatHistory.scrollTop = chatHistory.scrollHeight;
+             if (snippetsAdded) { renderCodeFilesSidebar(); }
+         }
+
+
+        // --- Sidebar Rendering ---
+        function renderPromptList() { promptList.innerHTML=''; if(userPrompts.length===0){promptList.innerHTML='<li class="no-items">No prompts yet.</li>'; return;} userPrompts.forEach((p,i)=>{const li=document.createElement('li');const a=document.createElement('a');a.href='#';a.textContent=`Prompt ${i+1}`;a.dataset.index=i;li.appendChild(a);promptList.appendChild(li);}); }
+        function renderCodeFilesSidebar() { codeFilesList.innerHTML = ''; if(extractedCodeSnippets.length === 0){codeFilesList.innerHTML = '<li class="no-items">No code files yet.</li>'; return;} extractedCodeSnippets.forEach((snippet, index) => { const li = document.createElement('li'); const nameSpan = document.createElement('span'); nameSpan.textContent = snippet.filename; nameSpan.title = snippet.filename; li.appendChild(nameSpan); if (!snippet.saved) { const saveLink = document.createElement('a'); saveLink.href = '#'; saveLink.textContent = 'Save'; saveLink.classList.add('snippet-action-link', 'save-snippet-link'); saveLink.dataset.index = index; li.appendChild(saveLink); } codeFilesList.appendChild(li); }); }
+
+        // --- Rerender Chat History ---
+        function rerenderChatHistory() { console.log("Re-rendering chat..."); chatHistory.innerHTML = ''; conversationHistory.forEach(msg => { if (msg.parts?.[0]?.text !== undefined && msg.parts?.[0]?.text !== null) { displayChatMessage(msg.role, msg.parts[0].text); } else { console.warn("Skipping re-render msg:", msg); } }); }
+
+        // --- Utility & Event Handlers ---
+        function copyCode(button) { navigator.clipboard.writeText(button.dataset.code).then(()=>{button.textContent='Copied!';setTimeout(()=>{button.textContent='Copy';},2000);}).catch(err=>{console.error('Copy fail:',err);button.textContent='Error!';setTimeout(()=>{button.textContent='Copy';},2000);}); }
+        function triggerSave(content, filename) { const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=filename;document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);console.log(`Saved: ${filename}`); }
+        function saveCodeWithPrompt(button) { const code=button.dataset.code; const lang=button.dataset.lang||'txt'; const prefix=(currentFilePrefix || 'code_file').replace(/[\s/\\?%*:|"<>]/g, '_'); const defFilename=`${prefix}_${Date.now()}.${lang}`; const fname=prompt("Filename:",defFilename); if(fname){triggerSave(code,fname);} }
+        function displayChatError(message) { removeChatLoadingIndicator(); const lastMsg=chatHistory.lastElementChild; if(!lastMsg||!lastMsg.classList.contains('chat-error-message')){const eD=document.createElement('div');eD.classList.add('chat-error-message');eD.textContent=message;chatHistory.appendChild(eD);chatHistory.scrollTop=chatHistory.scrollHeight;} }
+        function setChatLoading(loading) { isChatLoading=loading; updateChatAvailability(); if(loading){removeChatLoadingIndicator();const lD=document.createElement('div');lD.className='loading-indicator';lD.textContent='Thinking...';chatHistory.appendChild(lD);chatHistory.scrollTop=chatHistory.scrollHeight;}else{removeChatLoadingIndicator();} }
+        function removeChatLoadingIndicator() { const i=chatHistory.querySelector('.loading-indicator'); if(i) i.remove(); }
+        function handleChatHistoryClick(event) { if(event.target.classList.contains('copy-code-btn')){copyCode(event.target);}else if(event.target.classList.contains('save-code-btn')){saveCodeWithPrompt(event.target);} }
+        function handleSnippetListClick(event) { if (event.target.classList.contains('save-snippet-link')) { event.preventDefault(); const index = parseInt(event.target.dataset.index, 10); if (!isNaN(index) && index < extractedCodeSnippets.length) { const snippet = extractedCodeSnippets[index]; triggerSave(snippet.code, snippet.filename); snippet.saved = true; renderCodeFilesSidebar(); } } }
+        function handlePromptListClick(event) { if(event.target.tagName==='A'&&event.target.dataset.index!==undefined){event.preventDefault();const i=parseInt(event.target.dataset.index,10);if(!isNaN(i)&&i<userPrompts.length){openPromptModal(userPrompts[i]);}} }
+        function handleSaveAllPrompts(event) { event.preventDefault(); if(userPrompts.length===0){alert("No prompts.");return;} const fileContent=userPrompts.map((p,i)=>`--- Prompt ${i+1} ---\n\n${p}`).join('\n\n\n'); const prefix=(currentFilePrefix || 'prompts').replace(/[\s/\\?%*:|"<>]/g, '_'); const filename=`${prefix}_prompts.txt`; triggerSave(fileContent,filename); }
+
+    </script>
+
+</body>
+</html>
